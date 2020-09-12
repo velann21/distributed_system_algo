@@ -29,11 +29,24 @@ func main() {
 	if master == currentNode{
 		fmt.Println("Yes I am master")
 	}else{
+		childs, _, err := conn.Children("/election")
+		if err != nil{
+			fmt.Println("error")
+		}
+		sort.Strings(childs)
+		previous := ""
+		for _, v := range childs{
+			if v == currentNode{
+				break
+			}
+			previous = v
+		}
+		registerTo := previous
+		fmt.Println("sdsdsdsd","/election/"+registerTo)
+		AddWatcher("/election/"+registerTo, conn, nodeChangedEvent)
 		fmt.Println("No I am not master")
 	}
 
-	AddWatcher("/election", conn, nodeChangedEvent)
-	RegisterWatcher(registerWatcher,  nodeChangedEvent, conn)
 
 	go func(){
 		for{
@@ -49,6 +62,21 @@ func main() {
 					if master == currentNode{
 						fmt.Println("Yes I am master")
 					}else{
+						childs, _, err := conn.Children("/election")
+						if err != nil{
+							fmt.Println("error")
+						}
+						sort.Strings(childs)
+						previous := ""
+						for _, v := range childs{
+							if v == currentNode{
+								break
+							}
+							previous = v
+						}
+						registerTo := previous
+						fmt.Println("sdsdsdsd","/election/"+registerTo)
+						AddWatcher("/election/"+registerTo, conn, nodeChangedEvent)
 						fmt.Println("No I am not master")
 					}
 					fmt.Println("Still master ----->>>>", master)
@@ -62,7 +90,6 @@ func main() {
 	<-wait
 }
 
-func RegisterNodeChnageEvent(){}
 
 func RegisterWatcher(registerWatcher chan string, nodeChangedEvent  chan string, conn *zk.Conn, ){
 	go func(){
@@ -104,15 +131,15 @@ func WatchEvents(events <-chan zk.Event, wait chan bool, reRegisterWatcher chan 
 					fmt.Println("StateConnecting")
 				}
 
-				if event.Type == zk.EventNodeChildrenChanged{
-					reRegisterWatcher <- "Doregister"
-				}else if event.Type == zk.EventNodeDataChanged{
-					reRegisterWatcher <- "Doregister"
-				}else if event.Type == zk.EventNodeCreated{
-					reRegisterWatcher <- "Doregister"
-				}else if event.Type == zk.EventNodeDeleted{
-					reRegisterWatcher <- "Doregister"
-				}
+				//if event.Type == zk.EventNodeChildrenChanged{
+				//	reRegisterWatcher <- "Doregister"
+				//}else if event.Type == zk.EventNodeDataChanged{
+				//	reRegisterWatcher <- "Doregister"
+				//}else if event.Type == zk.EventNodeCreated{
+				//	reRegisterWatcher <- "Doregister"
+				//}else if event.Type == zk.EventNodeDeleted{
+				//	reRegisterWatcher <- "Doregister"
+				//}
 
 			}
 		}
@@ -133,7 +160,7 @@ func AddWatcher(path string, conn *zk.Conn, eventchangeLogs chan string){
 	go func(){
 		_, _, events, err := conn.ChildrenW(path)
 		if err != nil{
-            fmt.Println(err)
+			fmt.Println(err)
 		}
 		for{
 			select {

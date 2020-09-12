@@ -8,94 +8,34 @@ import (
 	"time"
 )
 
-var currentNode string
-func main() {
-	wait := make(chan bool)
-	nodeChangedEvent := make(chan string, 10)
-	registerWatcher := make(chan string, 10)
-	conn := CreateZookeeper(wait, registerWatcher)
+type LeaderElection struct {
+	wait chan bool
+	nodeChangedEvent chan string
+	reRegisterWatcher chan string
+	conn *zk.Conn
+	currentNode string
 
-	path, err := conn.Create("/election/node_", []byte{}, zk.FlagSequence|zk.FlagEphemeral, zk.WorldACL(zk.PermAll))
+}
+
+const election = "/election"
+
+func (e *LeaderElection) ConnectZK(wait chan bool) (<- chan zk.Event, error) {
+	c, events, err := zk.Connect([]string{"127.0.0.1:2181"}, time.Second)
 	if err != nil {
-		fmt.Println(err)
+		return nil, nil
 	}
-	node := strings.Split(path, "/")
-	currentNode = node[len(node)-1]
-	fmt.Println("current Node label ------->", node[len(node)-1])
-	master, err := IsMaster("/election", conn)
-	if err != nil{
-		fmt.Println(err)
-	}
-	if master == currentNode{
-		fmt.Println("Yes I am master")
-	}else{
-		fmt.Println("No I am not master")
-	}
-
-	AddWatcher("/election", conn, nodeChangedEvent)
-	RegisterWatcher(registerWatcher,  nodeChangedEvent, conn)
-
-	go func(){
-		for{
-			select {
-			case event := <- nodeChangedEvent:
-				fmt.Println("Events ----->>> :",event)
-				count := 0
-				for count <= 10{
-					master, err := IsMaster("/election", conn)
-					if err != nil{
-						fmt.Println(err)
-					}
-					if master == currentNode{
-						fmt.Println("Yes I am master")
-					}else{
-						fmt.Println("No I am not master")
-					}
-					fmt.Println("Still master ----->>>>", master)
-					count++
-					time.Sleep(time.Second*10)
-				}
-			}
-		}
-	}()
-
-	<-wait
+	e.conn = c
+	return events, nil
 }
 
-func RegisterNodeChnageEvent(){}
-
-func RegisterWatcher(registerWatcher chan string, nodeChangedEvent  chan string, conn *zk.Conn, ){
-	go func(){
-		for{
-			select {
-			case event, ok := <- registerWatcher:
-				if ok{
-					print("RegisterWatcher",event)
-					AddWatcher("/election", conn, nodeChangedEvent)
-				}
-			}
-		}
-	}()
-}
-
-func CreateZookeeper(wait chan bool, reRegisterWatcher chan string) *zk.Conn {
-	c, events, err := zk.Connect([]string{"127.0.0.1:2181"}, time.Second) //*10)
-	if err != nil {
-		panic(err)
-	}
-	WatchEvents(events, wait, reRegisterWatcher)
-	return c
-}
-
-func WatchEvents(events <-chan zk.Event, wait chan bool, reRegisterWatcher chan string) {
+func (e *LeaderElection) WatchEvents(events <-chan zk.Event){
 	go func() {
 		isConnectedFlag := false
 		for !isConnectedFlag {
-			fmt.Println( "Event occured in WatchEvents")
 			select {
 			case event := <-events:
 				if event.State == zk.StateDisconnected {
-					wait <- true
+					e.wait <- true
 					isConnectedFlag = true
 				} else if event.State == zk.StateConnected {
 					fmt.Println("StateConnected")
@@ -104,14 +44,14 @@ func WatchEvents(events <-chan zk.Event, wait chan bool, reRegisterWatcher chan 
 					fmt.Println("StateConnecting")
 				}
 
-				if event.Type == zk.EventNodeChildrenChanged{
-					reRegisterWatcher <- "Doregister"
-				}else if event.Type == zk.EventNodeDataChanged{
-					reRegisterWatcher <- "Doregister"
-				}else if event.Type == zk.EventNodeCreated{
-					reRegisterWatcher <- "Doregister"
-				}else if event.Type == zk.EventNodeDeleted{
-					reRegisterWatcher <- "Doregister"
+				if event.Type == zk.EventNodeChildrenChanged {
+					e.reRegisterWatcher <- "Doregister"
+				} else if event.Type == zk.EventNodeDataChanged {
+					e.reRegisterWatcher <- "Doregister"
+				} else if event.Type == zk.EventNodeCreated {
+					e.reRegisterWatcher <- "Doregister"
+				} else if event.Type == zk.EventNodeDeleted {
+					e.reRegisterWatcher <- "Doregister"
 				}
 
 			}
@@ -119,39 +59,169 @@ func WatchEvents(events <-chan zk.Event, wait chan bool, reRegisterWatcher chan 
 	}()
 }
 
-func IsMaster(path string, conn *zk.Conn)(string, error){
-	childs, _, err := conn.Children(path)
-	if err != nil{
+func (e *LeaderElection) GetMaster(path string) (string, error){
+	childs, _, err := e.conn.Children(path)
+	if err != nil {
 		return "", err
 	}
 	sort.Strings(childs)
 	return childs[0], nil
-
 }
 
-func AddWatcher(path string, conn *zk.Conn, eventchangeLogs chan string){
-	go func(){
+func (e *LeaderElection) AddWatcher(path string, conn *zk.Conn, eventchangeLogs chan string) {
+	go func() {
 		_, _, events, err := conn.ChildrenW(path)
-		if err != nil{
+		if err != nil {
 			fmt.Println(err)
 		}
-		for{
+		for {
 			select {
 			case event := <-events:
-				if event.Type == zk.EventNodeChildrenChanged{
+				if event.Type == zk.EventNodeChildrenChanged {
 					eventchangeLogs <- "changeoccurred"
 
-				}else if event.Type == zk.EventNodeDataChanged{
+				} else if event.Type == zk.EventNodeDataChanged {
 					eventchangeLogs <- "changeoccurred"
 
-				}else if event.Type == zk.EventNodeCreated{
+				} else if event.Type == zk.EventNodeCreated {
 					eventchangeLogs <- "changeoccurred"
 
-				}else if event.Type == zk.EventNodeDeleted{
+				} else if event.Type == zk.EventNodeDeleted {
 					eventchangeLogs <- "changeoccurred"
 				}
 			}
 		}
 
 	}()
+}
+
+func (e *LeaderElection) RegisterWatcher(nodeChangedEvent chan string) {
+	go func() {
+		for {
+			select {
+			case event, ok := <- e.reRegisterWatcher:
+				if ok {
+					print("RegisterWatcher", event)
+					e.AddWatcher(election, e.conn, nodeChangedEvent)
+				}
+			}
+		}
+	}()
+}
+
+
+
+func (e *LeaderElection) CreateZNode(path string)(string, error){
+	path, err := e.conn.Create(election+"/node_", []byte{}, zk.FlagSequence|zk.FlagEphemeral, zk.WorldACL(zk.PermAll))
+	if err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+func (e *LeaderElection) ExtractChildZnode(path string)string{
+	node := strings.Split(path, "/")
+	return node[len(node)-1]
+}
+
+func (e *LeaderElection) RegisterNodeChangeEvent(){
+	go func() {
+		for {
+			select {
+			case event := <-e.nodeChangedEvent:
+				fmt.Println("Events ----->>> :", event)
+				count := 0
+				for count <= 5 {
+					master, err := e.GetMaster(election)
+					if err != nil {
+						fmt.Println(err)
+					}
+					if e.CheckIfMaster(master) {
+						fmt.Println("Yes I am master")
+					} else {
+						fmt.Println("No I am not master")
+						err := e.RegisterWithPrecedorNode()
+						if err != nil{
+							fmt.Println(err)
+						}
+
+					}
+					fmt.Println("Still master ----->>>>", master)
+					count++
+					time.Sleep(time.Second * 5)
+				}
+			}
+		}
+	}()
+
+}
+
+func (e *LeaderElection) CheckIfMaster(master string)bool{
+	if master == e.currentNode {
+		return true
+	}
+	return false
+}
+
+func (e *LeaderElection) RegisterWithPrecedorNode()error{
+	isExist := false
+	for !isExist{
+		childs, _, err := e.conn.Children(election)
+		if err != nil{
+			return err
+		}
+		sort.Strings(childs)
+		previous := ""
+		for _, v := range childs{
+			if v == e.currentNode{
+				break
+			}
+			previous = v
+		}
+		registerTo := previous
+		exist, _, err := e.conn.Exists(election+"/"+registerTo)
+		if err != nil{
+			fmt.Println(err)
+			continue
+		}
+		if exist {
+			fmt.Println("Precedor Nodes: ","/election/"+registerTo)
+			e.AddWatcher(election+"/"+registerTo, e.conn, e.nodeChangedEvent)
+			fmt.Println("No I am not master")
+
+		}
+		isExist = true
+	}
+	return nil
+}
+
+func main() {
+	wait := make(chan bool)
+	nodeChangedEvent := make(chan string, 10)
+	registerWatcher := make(chan string, 10)
+	le := LeaderElection{wait:wait, nodeChangedEvent:nodeChangedEvent, reRegisterWatcher:registerWatcher}
+	events, err := le.ConnectZK(wait)
+	if err != nil{
+
+	}
+	le.WatchEvents(events)
+	path, err := le.CreateZNode(election+"/"+"node_")
+	le.currentNode = le.ExtractChildZnode(path)
+	fmt.Println("currentNode ----->>>>>", le.currentNode)
+	master, err := le.GetMaster(election)
+	if err != nil {
+		fmt.Println(err)
+	}
+	if le.CheckIfMaster(master){
+		fmt.Println("Yes I am master")
+	} else {
+		err := le.RegisterWithPrecedorNode()
+		if err != nil{
+			fmt.Println(err)
+		}
+	}
+
+	le.RegisterWatcher(le.nodeChangedEvent)
+	le.RegisterNodeChangeEvent()
+	<-wait
 }
