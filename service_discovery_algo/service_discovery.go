@@ -198,9 +198,5 @@ func main() {
 	if err != nil {
 		return
 	}
-
-
-
-
 	<-sd.wait
 }

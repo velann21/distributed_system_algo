@@ -1,30 +1,31 @@
 package main
 
 import (
+	"github.com/velann21/coordination-service/pkg/controller"
+	//helper "github.com/velann21/coordination-service/pkg/helpers"
+	service2 "github.com/velann21/coordination-service/pkg/service"
 	rm "github.com/velann21/todo-commonlib/proto_files/resource_manager"
-	"github.com/velann21/coordination-service/routes"
 	"google.golang.org/grpc"
 	"log"
 	"net"
 	"os"
 )
 
-
 func main() {
-	server := routes.ResourceManagerServer{}
-	grpcController := routes.Initialize(db.GetSqlConnection())
-	server, err := net.Listen("tcp", "0.0.0.0:50051")
+
+	listner, err := net.Listen("tcp", "0.0.0.0:50052")
 	if err != nil {
-		logrus.WithError(err).Error("failed to listen")
 		os.Exit(100)
 	}
+
+	service := service2.ClusterService{}
+	server := controller.Initialize(&service)
+
 	s := grpc.NewServer()
-	pf.RegisterUserManagementServiceServer(s, &routes.ServerRoutes{GrpcController:grpcController})
-	logrus.Info("Started user_srv grpc server")
-	err = s.Serve(server)
+	rm.RegisterResourceManagerServiceServer(s, server)
+    log.Println("Server starting")
+	err = s.Serve(listner)
 	if err != nil {
 		log.Fatal("Something wrong while booting up grpc")
 	}
-
-
 }
