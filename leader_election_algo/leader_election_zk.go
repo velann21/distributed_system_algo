@@ -19,7 +19,7 @@ type LeaderElection struct {
 
 const election = "/election"
 
-func (e *LeaderElection) ConnectZK(wait chan bool) (<- chan zk.Event, error) {
+func (e *LeaderElection) ConnectZK() (<- chan zk.Event, error) {
 	c, events, err := zk.Connect([]string{"127.0.0.1:2181"}, time.Second)
 	if err != nil {
 		return nil, nil
@@ -108,8 +108,6 @@ func (e *LeaderElection) RegisterWatcher(nodeChangedEvent chan string) {
 		}
 	}()
 }
-
-
 
 func (e *LeaderElection) CreateZNode(path string)(string, error){
 	path, err := e.conn.Create(election+"/node_", []byte{}, zk.FlagSequence|zk.FlagEphemeral, zk.WorldACL(zk.PermAll))
@@ -200,7 +198,7 @@ func main() {
 	nodeChangedEvent := make(chan string, 10)
 	registerWatcher := make(chan string, 10)
 	le := LeaderElection{wait:wait, nodeChangedEvent:nodeChangedEvent, reRegisterWatcher:registerWatcher}
-	events, err := le.ConnectZK(wait)
+	events, err := le.ConnectZK()
 	if err != nil{
 
 	}
