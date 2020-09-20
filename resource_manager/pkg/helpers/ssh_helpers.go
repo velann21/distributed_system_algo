@@ -25,6 +25,7 @@ func (vssh *SSH) NewSSHClient(){
 		fmt.Println(err)
 		return
 	}
+	//curl:= "curl --location --request POST 'http://localhost:8081/api/v1/resourcemanager/cluster' --header 'Content-Type: application/json' --data-raw '{"masterIP":["172.10.10.1","172.10.10.2"],"workerIP": ["172.10.10.1","172.10.10.2", "172.10.10.3"],"etcdIP":["172.10.10.1","172.10.10.2", "172.10.10.3"]}'"
 	//"sudo docker run --publish 50052:50052 --network host --detach --name rm singaravelan21/resourcemanager:v1.2.0"
 	vssh.RunCommand([]string{"sudo adduser velan"}, client)
 }

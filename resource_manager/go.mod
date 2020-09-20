@@ -8,4 +8,5 @@ require (
 	github.com/go-zookeeper/zk v1.0.2 // indirect
 	github.com/velann21/todo-commonlib v1.9.12
 	golang.org/x/crypto v0.0.0-20200220183623-bac4c82f6975
+	google.golang.org/grpc v1.28.0
 )
