@@ -144,6 +144,7 @@ func (e *LeaderElection) RegisterNodeChangeEvent(){
 						}
 
 					}
+
 					fmt.Println("Still master ----->>>>", master)
 					count++
 					time.Sleep(time.Second * 5)
