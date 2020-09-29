@@ -20,6 +20,12 @@ func startWebserver() {
 }
 
 func startLoadTest() {
+	trp := http.Transport{
+
+	}
+	cli := http.Client{
+		Transport:&trp,
+	}
 	count := 0
 	for {
 		resp, err := http.Get("http://localhost:8080/")

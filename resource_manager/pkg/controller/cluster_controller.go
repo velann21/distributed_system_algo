@@ -30,6 +30,12 @@ func (c *ClusterControllerImpl) CreateCluster(ctx context.Context, req *rm.Creat
 	return &rm.CreateClusterResponse{Success:true}, nil
 }
 
+func (c *ClusterControllerImpl) CollectEvent(ctx context.Context, req *rm.EventsRequests)(*rm.EventsResponse, error){
+	fmt.Println("CollectEvent Collecting")
+	fmt.Println("Request Objects: ",req)
+	return &rm.EventsResponse{Success:true}, nil
+}
+
 func Initialize(service service.IClusterService)rm.ResourceManagerServiceServer{
 	return &ClusterControllerImpl{Srv:service}
 }

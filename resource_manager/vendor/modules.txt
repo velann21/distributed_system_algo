@@ -13,7 +13,7 @@ github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
-# github.com/velann21/todo-commonlib v1.9.12
+# github.com/velann21/todo-commonlib v1.31.12
 github.com/velann21/todo-commonlib/proto_files/resource_manager
 # golang.org/x/crypto v0.0.0-20200220183623-bac4c82f6975
 golang.org/x/crypto/blowfish
