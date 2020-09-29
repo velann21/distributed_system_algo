@@ -335,6 +335,8 @@ github.com/velann21/todo-commonlib v1.9.10/go.mod h1:y/4qlfdB546aXdBp4QW/GcdNrrv
 github.com/velann21/todo-commonlib v1.9.12 h1:sF+xwEhU3NQIVS5AoRDVSoAelqq8isT+N0s25DWrZ5o=
 github.com/velann21/todo-commonlib v1.9.12/go.mod h1:y/4qlfdB546aXdBp4QW/GcdNrrvirJ1fhWAsq6v5JoI=
 github.com/velann21/todo-commonlib v1.20.7 h1:DP0Lf6gB/xKrHG7J8V9/x/BK1WTCqQzQzOegSs8t2Qs=
+github.com/velann21/todo-commonlib v1.31.12 h1:CpT+QyI8Wsn9tst2oOA64WqsKyzPv+cjX2q1OXXR21I=
+github.com/velann21/todo-commonlib v1.31.12/go.mod h1:y/4qlfdB546aXdBp4QW/GcdNrrvirJ1fhWAsq6v5JoI=
 github.com/vmware-tanzu/velero v1.4.0/go.mod h1:mzamYwVXIiP1pryDaiVxcQyRcbtaObFWyPgYDGwXcZ0=
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
