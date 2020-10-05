@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: inventory_srv
+  app: backend
+spec:
+    containers:
+    - name: inventory_srv
+      image: singaravelan21/inventory_srv
+      ports:
+        - containerPort: 8083
+      volumeMounts:
+        - name: localvolume
+          mountPath: /usr/share/nginx/html
