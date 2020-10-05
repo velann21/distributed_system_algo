@@ -21,8 +21,8 @@ type FileOperations struct {
 
 func (fo *FileOperations) CreateDocumentToTokens(dirs []string, documents map[string][]string){
 	for _, v := range dirs{
-		_, size := fo.openFile("/Users/singaravelannandakumar/github/src/github.com/coordination-service/distributed_documents_search/docs/"+v)
-		words, err := fo.Tokens(size)
+		_, data := fo.openFile("/Users/singaravelannandakumar/github/src/github.com/coordination-service/distributed_documents_search/docs/"+v)
+		words, err := fo.Tokens(data)
 		if err != nil{
 			continue
 		}
@@ -30,7 +30,7 @@ func (fo *FileOperations) CreateDocumentToTokens(dirs []string, documents map[st
 	}
 }
 
-func (fo *FileOperations)  openFile(filename string) (byteCount int, buffer *bytes.Buffer) {
+func (fo *FileOperations) openFile(filename string) (byteCount int, buffer *bytes.Buffer) {
 
 	fo.data, fo.err = os.Open(filename)
 	if fo.err != nil {
