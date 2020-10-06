@@ -177,17 +177,15 @@ func (e *LeaderElection) RegisterWithPrecedorNode()error{
 			}
 			previous = v
 		}
-		registerTo := previous
-		exist, _, err := e.conn.Exists(election+"/"+registerTo)
+		exist, _, err := e.conn.Exists(election+"/"+previous)
 		if err != nil{
 			fmt.Println(err)
 			continue
 		}
 		if exist {
-			fmt.Println("Precedor Nodes: ","/election/"+registerTo)
-			e.AddWatcher(election+"/"+registerTo, e.conn, e.nodeChangedEvent)
+			fmt.Println("Precedor Nodes: ","/election/"+previous)
+			e.AddWatcher(election+"/"+previous, e.conn, e.nodeChangedEvent)
 			fmt.Println("No I am not master")
-
 		}
 		isExist = true
 	}

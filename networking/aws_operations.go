@@ -15,11 +15,31 @@ import (
 	//"log"
 )
 
-func ExampleEC2_CreateVpc_shared00() {
+
+type CreateVpcStruct struct {
+	Tag []*Tag `json:"tags"`
+	Name string `json:"name"`
+	CredLocation string `json:"credLocation"`
+	CredName string `json:"credName"`
+	Region string `json:"region"`
+	CIDR string `json:"cidr"`
+
+}
+type Tag struct{
+	Key string `json:"key"`
+	Value string `json:"value"`
+
+}
+
+
+func CreateVpc (createVpc CreateVpcStruct) {
 	sess, err := session.NewSession(&aws.Config{
-		Credentials: credentials.NewSharedCredentials("/Users/singaravelannandakumar/.aws/credentials", "default"),
-		Region: aws.String("eu-central-1")},
+		Credentials: credentials.NewSharedCredentials(createVpc.CredLocation, createVpc.CredName),
+		Region: aws.String(createVpc.Region)},
 	)
+	if err != nil{
+		return
+	}
 	val, err := sess.Config.Credentials.Get()
 	if err != nil{
 		fmt.Println(err)
@@ -27,21 +47,39 @@ func ExampleEC2_CreateVpc_shared00() {
     fmt.Println(val)
 
 	input := &ec2.CreateVpcInput{
-		CidrBlock: aws.String("10.0.0.0/16"),
+		CidrBlock: aws.String(createVpc.CIDR),
 		TagSpecifications: []*ec2.TagSpecification{
 			&ec2.TagSpecification{
 				ResourceType: aws.String(ec2.ResourceTypeVpc),
-				Tags: []*ec2.Tag{
-				{
-					Key:   aws.String("Name"),
-					Value: aws.String("MyFirstInstance"),
-				},
-			},},
-		},
-	}
-	fmt.Println(input)
+				Tags: FormTags(createVpc.Tag),
+			}},
+		}
+
 	svc := ec2.New(sess)
 	resu, err := svc.CreateVpc(input)
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			default:
+				fmt.Println(aerr.Error())
+			}
+		} else {
+			fmt.Println(err.Error())
+		}
+		return
+	}
+    fmt.Println(resu.Vpc.VpcId)
+}
+
+
+func CreateSubNet(){
+	svc := ec2.New(session.New())
+	input := &ec2.CreateSubnetInput{
+		CidrBlock: aws.String("10.0.1.0/24"),
+		VpcId:     aws.String("vpc-a01106c2"),
+	}
+
+	result, err := svc.CreateSubnet(input)
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
 			switch aerr.Code() {
@@ -55,23 +93,18 @@ func ExampleEC2_CreateVpc_shared00() {
 		}
 		return
 	}
-    fmt.Println(resu.Vpc.VpcId)
+
+	fmt.Println(result)
+}
 
 
-	//Add tags to the created instance
-	//_, errtag := svc.CreateTags(&ec2.CreateTagsInput{
-	//	Resources: []*string{result},
-	//	Tags: []*ec2.Tag{
-	//		{
-	//			Key:   aws.String("Name"),
-	//			Value: aws.String("MyFirstInstance"),
-	//		},
-	//	},
-	//})
-	//if errtag != nil {
-	//	//log.Println("Could not create tags for instance", runResult.Instances[0].InstanceId, errtag)
-	//	return
-	//}
+func FormTags(tags []*Tag)[]*ec2.Tag{
+	ec2tags := []*ec2.Tag{}
+	for _, value := range tags{
+		kv := ec2.Tag{Key:aws.String(value.Key), Value:aws.String(value.Value)}
+		ec2tags = append(ec2tags, &kv)
+	}
+	return ec2tags
 }
 
 func ExampleEC2_CreateVolume_shared01() {
@@ -259,29 +292,15 @@ func ExampleEC2_CreateRoute_shared00() {
 	fmt.Println(result)
 }
 func main() {
-	ExampleEC2_CreateVpc_shared00()
-}
-
-
-type VPC struct {
-	Vpc struct {
-		CidrBlock               string `json:"CidrBlock"`
-		CidrBlockAssociationSet []struct {
-			AssociationID  string `json:"AssociationId"`
-			CidrBlock      string `json:"CidrBlock"`
-			CidrBlockState struct {
-				State string `json:"State"`
-			} `json:"CidrBlockState"`
-		} `json:"CidrBlockAssociationSet"`
-		DhcpOptionsID   string `json:"DhcpOptionsId"`
-		InstanceTenancy string `json:"InstanceTenancy"`
-		IsDefault       bool   `json:"IsDefault"`
-		OwnerID         string `json:"OwnerId"`
-		State           string `json:"State"`
-		Tags            []struct {
-			Key   string `json:"Key"`
-			Value string `json:"Value"`
-		} `json:"Tags"`
-		VpcID string `json:"VpcId"`
-	} `json:"Vpc"`
+	tags := make([]*Tag, 0)
+	tags = append(tags, &Tag{Key:"Name", Value:"velanVpc"})
+	vpcReq := CreateVpcStruct{
+		Tag:tags,
+		Name: "velanVpc",
+		CredLocation: "/Users/singaravelannandakumar/.aws/credentials",
+		CredName: "default",
+		Region: "eu-central-1",
+		CIDR: "10.0.0.0/16",
+	}
+	CreateVpc(vpcReq)
 }
