@@ -20,7 +20,7 @@ type LeaderElection struct {
 const election = "/election"
 
 func (e *LeaderElection) ConnectZK() (<- chan zk.Event, error) {
-	c, events, err := zk.Connect([]string{"127.0.0.1:2181"}, time.Second)
+	c, events, err := zk.Connect([]string{"127.0.0.1:2182"}, time.Second)
 	if err != nil {
 		return nil, nil
 	}
@@ -43,17 +43,6 @@ func (e *LeaderElection) WatchEvents(events <-chan zk.Event){
 				} else if event.State == zk.StateConnecting {
 					fmt.Println("StateConnecting")
 				}
-
-				if event.Type == zk.EventNodeChildrenChanged {
-					e.reRegisterWatcher <- "Doregister"
-				} else if event.Type == zk.EventNodeDataChanged {
-					e.reRegisterWatcher <- "Doregister"
-				} else if event.Type == zk.EventNodeCreated {
-					e.reRegisterWatcher <- "Doregister"
-				} else if event.Type == zk.EventNodeDeleted {
-					e.reRegisterWatcher <- "Doregister"
-				}
-
 			}
 		}
 	}()
@@ -92,20 +81,6 @@ func (e *LeaderElection) AddWatcher(path string, conn *zk.Conn, eventchangeLogs 
 			}
 		}
 
-	}()
-}
-
-func (e *LeaderElection) RegisterWatcher(nodeChangedEvent chan string) {
-	go func() {
-		for {
-			select {
-			case event, ok := <- e.reRegisterWatcher:
-				if ok {
-					print("RegisterWatcher", event)
-					e.AddWatcher(election, e.conn, nodeChangedEvent)
-				}
-			}
-		}
 	}()
 }
 
@@ -171,6 +146,7 @@ func (e *LeaderElection) RegisterWithPrecedorNode()error{
 		}
 		sort.Strings(childs)
 		previous := ""
+		//TODO Change this into Binary Search
 		for _, v := range childs{
 			if v == e.currentNode{
 				break
@@ -217,8 +193,6 @@ func main() {
 			fmt.Println(err)
 		}
 	}
-
-	le.RegisterWatcher(le.nodeChangedEvent)
 	le.RegisterNodeChangeEvent()
 	<-wait
 }

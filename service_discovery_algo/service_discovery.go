@@ -145,7 +145,7 @@ func (sd *ServiceRegistry) ReRegisterServiceRegistryEvents() {
 }
 
 func (sd *ServiceRegistry) ConnectZK() (<-chan zk.Event, error) {
-	c, events, err := zk.Connect([]string{"127.0.0.1:2181"}, time.Second)
+	c, events, err := zk.Connect([]string{"127.0.0.1:2182"}, time.Second)
 	if err != nil {
 		return nil, nil
 	}
@@ -167,7 +167,6 @@ func (sd *ServiceRegistry) RegisterBaseEvents(events <-chan zk.Event) {
 					fmt.Println("StateDisconnected")
 				} else if event.State == zk.StateConnected {
 					fmt.Println("StateConnected")
-
 				} else if event.State == zk.StateConnecting {
 					fmt.Println("StateConnecting")
 				}
