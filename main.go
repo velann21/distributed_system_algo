@@ -4,40 +4,11 @@ import (
 	"fmt"
 	"github.com/go-zookeeper/zk"
 	"sort"
-	"strconv"
 	"time"
 )
 
 var currentNode string
-
-
-
-
-
-
-
 func main() {
-
-	str := "xyz abc mnp  "
-
-    strconv.Atoi()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 	//wait := make(chan bool)
 	//nodeChangedEvent := make(chan string, 10)
 	//registerWatcher := make(chan string, 10)
