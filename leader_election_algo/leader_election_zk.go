@@ -127,7 +127,6 @@ func (e *LeaderElection) RegisterNodeChangeEvent(){
 			}
 		}
 	}()
-
 }
 
 func (e *LeaderElection) CheckIfMaster(master string)bool{
