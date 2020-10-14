@@ -118,13 +118,13 @@ func (le *LeaderElectionImpl) RegisterEventChangeLogs() {
 					}
 					if le.CheckIfMaster(master) {
 						fmt.Println("Yes I am master")
+						RegisterAsMaster(master, le.conn)
 					} else {
 						fmt.Println("No I am not master")
 						err := le.RegisterWithPrecedorNode()
 						if err != nil {
 							fmt.Println(err)
 						}
-
 					}
 
 					fmt.Println("Still master ----->>>>", master)
@@ -200,21 +200,20 @@ func main() {
 
 
 	if leaderElection.CheckIfMaster(masterNode) {
-		RegisterMaster(masterNode)
+		RegisterAsMaster(masterNode, leaderElection.conn)
 	} else {
 		err := leaderElection.RegisterWithPrecedorNode()
 		if err != nil {
 			log.Fatalln(err)
 		}
-
-
+		RegisterAsWorker(currentNode, leaderElection.conn)
 	}
 	leaderElection.RegisterEventChangeLogs()
 	<-wait
 }
 
-func RegisterMaster(node string){
-	sd := NewServiceRegistry()
+func RegisterAsMaster(node string, conn *zk.Conn){
+	sd := NewServiceRegistry(conn)
 	type EP struct {
 		IP string
 	}
@@ -231,11 +230,11 @@ func RegisterMaster(node string){
 	}
 
 	if !isExist {
-		_, err := sd.CreateZNode(MASTERSERVICEREGISTERY, []byte{})
+		_, err := sd.CreateZNode(MASTERSERVICEREGISTERY,[]byte{}, false, false)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		_, err = sd.CreateZNode(MASTERSERVICEREGISTERY+"/"+node, metaByte)
+		_, err = sd.CreateZNode(MASTERSERVICEREGISTERY+"/"+node, metaByte, true, true)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -253,14 +252,206 @@ func RegisterMaster(node string){
 		   }
 		}
 
-		_, err = sd.CreateZNode(MASTERSERVICEREGISTERY+"/"+node, metaByte)
+		_, err = sd.CreateZNode(MASTERSERVICEREGISTERY+"/"+node, metaByte, true, true)
+		if err != nil {
+			log.Fatalln(err)
+		}
+	}
+}
+
+func RegisterAsWorker(node string, conn *zk.Conn){
+	sd := NewServiceRegistry(conn)
+	type EP struct {
+		IP string
+	}
+	//Get the network interface IP
+	ep := EP{IP: "127.0.0.1:2379"}
+	metaByte, err := json.Marshal(ep)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	isExist, err := sd.ZnodeExist(WORKERSERVICEREGISTERY)
+	if err != nil{
+		log.Fatalln(err)
+	}
+
+	if !isExist {
+		_, err := sd.CreateZNode(WORKERSERVICEREGISTERY, []byte{}, false, false)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		fmt.Println("Creating the worker node", WORKERSERVICEREGISTERY+"/"+node)
+		_, err = sd.CreateZNode(WORKERSERVICEREGISTERY+"/"+node, metaByte, true, true)
+		if err != nil {
+			log.Fatalln(err)
+		}
+	}else{
+		_, err = sd.CreateZNode(WORKERSERVICEREGISTERY+"/"+node, metaByte, true, true)
 		if err != nil {
 			log.Fatalln(err)
 		}
 	}
 
-	sd.WatchWorkerNodes(MASTERSERVICEREGISTERY+"/"+node)
-
 
 
 }
+
+
+type PATH string
+const MASTERSERVICEREGISTERY = "/service_master"
+const WORKERSERVICEREGISTERY = "/service_workers"
+type ServiceRegistry struct {
+	conn *zk.Conn
+	addressList     []string
+	eventchangeLogs chan []string
+	wait            chan bool
+}
+
+func NewServiceRegistry(conn *zk.Conn) *ServiceRegistry {
+	addressList := make([]string, 0)
+	eventchangeLogs := make(chan []string, 0)
+	wait := make(chan bool)
+	return &ServiceRegistry{addressList: addressList, eventchangeLogs: eventchangeLogs, wait: wait, conn:conn}
+}
+
+func (sd *ServiceRegistry) CreateZNode(path string, data []byte, ephmeral bool, seq bool) (PATH, error) {
+
+	var fullPathString PATH
+	if ephmeral == true && seq == true{
+		fullPath, err := sd.conn.Create(path, data, zk.FlagSequence | zk.FlagEphemeral, zk.WorldACL(zk.PermAll))
+		if err != nil {
+			return fullPathString, err
+		}
+		fullPathString = PATH(fullPath)
+		return fullPathString, nil
+	}else{
+		fullPath, err := sd.conn.Create(path, data, 0, zk.WorldACL(zk.PermAll))
+		if err != nil {
+			return fullPathString, err
+		}
+		fullPathString = PATH(fullPath)
+		return fullPathString, nil
+	}
+
+}
+
+
+func (sd *ServiceRegistry) GetZNodeChilds(path string) ([]string, error) {
+	childs, _, err := sd.conn.Children(path)
+	if err != nil {
+		return nil, err
+	}
+	return childs, nil
+}
+
+func (sd *ServiceRegistry) DeleteZNode(path string, version int32) (error) {
+	err := sd.conn.Delete(path, version)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+
+func (sd *ServiceRegistry) ZnodeExist(path string)(bool,error){
+	exist, _, err := sd.conn.Exists(path)
+	if err != nil {
+		return  false, err
+	}
+	return exist, nil
+}
+
+func (sd *ServiceRegistry) DeleteZnode(path string)(error){
+	err := sd.conn.Delete(path, 0)
+	if err != nil {
+		return  err
+	}
+	return nil
+}
+
+func (sd *ServiceRegistry) UpdateAddressList(childs []string) {
+	fmt.Println(childs)
+	for _, v := range childs {
+		zNodePath := WORKERSERVICEREGISTERY + "/" + v
+		exist, _, err := sd.conn.Exists(zNodePath)
+		if err != nil {
+			continue
+		}
+		if !exist {
+			continue
+		}
+		data, _, err := sd.conn.Get(zNodePath)
+		if err != nil {
+			continue
+		}
+		convertedData := string(data)
+		fmt.Println(convertedData)
+		sd.addressList = append(sd.addressList, convertedData)
+	}
+}
+
+func (sd *ServiceRegistry) ReRegisterWatchWorkerNodes() {
+	go func() {
+		fmt.Println("inside ReRegisterServiceRegistryEvents")
+		for {
+			select {
+			case data := <-sd.eventchangeLogs:
+				fmt.Println("Inside ReRegisterServiceRegistryEvents")
+				sd.UpdateAddressList(data)
+				_ = sd.WatchWorkerNodes(WORKERSERVICEREGISTERY)
+			}
+		}
+	}()
+
+}
+
+func (sd *ServiceRegistry) WatchWorkerNodes(path string) error {
+	go func() {
+		fmt.Println("RegisterServiceRegistryEvents")
+		_, _, events, err := sd.conn.ChildrenW(path)
+		if err != nil {
+			fmt.Println(err, "error occured")
+		}
+		for {
+			select {
+			case event := <-events:
+				if event.Type == zk.EventNodeChildrenChanged {
+					fmt.Println("EventNodeChildrenChanged")
+					childs, _, _, err := sd.conn.ChildrenW(path)
+					if err != nil {
+						fmt.Println(err, "error occured")
+					}
+					sd.eventchangeLogs <- childs
+
+				} else if event.Type == zk.EventNodeDataChanged {
+					childs, _, _, err := sd.conn.ChildrenW(path)
+					if err != nil {
+						fmt.Println(err, "error occured")
+					}
+					fmt.Println("EventNodeDataChanged")
+					sd.eventchangeLogs <- childs
+
+				} else if event.Type == zk.EventNodeCreated {
+					childs, _, _, err := sd.conn.ChildrenW(path)
+					if err != nil {
+						fmt.Println(err, "error occured")
+					}
+					fmt.Println("EventNodeCreated")
+					sd.eventchangeLogs <- childs
+
+				} else if event.Type == zk.EventNodeDeleted {
+					childs, _, _, err := sd.conn.ChildrenW(path)
+					if err != nil {
+						fmt.Println(err, "error occured")
+					}
+					fmt.Println("EventNodeDeleted")
+					sd.eventchangeLogs <- childs
+				}
+			}
+		}
+	}()
+	return nil
+}
+
+
