@@ -271,7 +271,7 @@ func RegisterAsWorker(node string, conn *zk.Conn) {
 		IP string
 	}
 	//Get the network interface IP
-	ep := EP{IP: "127.0.0.1:2379"}
+	ep := EP{IP: "192.168.1.0:2379"}
 	metaByte, err := json.Marshal(ep)
 	if err != nil {
 		log.Fatalln(err)
